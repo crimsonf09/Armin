@@ -11,6 +11,7 @@ from app.api.routes.conversations import router as conversation_router
 from app.core.config import settings
 from app.db.mongo import connect_mongo, disconnect_mongo, get_db
 from app.services.chat_service import ensure_indexes
+from app.services.rag_service import close_qdrant_client, ensure_qdrant_collection
 from app.sockets.handlers import sio
 
 limiter = Limiter(key_func=get_remote_address)
@@ -20,7 +21,13 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(_: FastAPI):
     await connect_mongo()
     await ensure_indexes(get_db())
+    try:
+        ensure_qdrant_collection()
+    except Exception as exc:  # pragma: no cover - startup warning path
+        # Allow app startup even if vector DB is temporarily unavailable.
+        print(f"Qdrant initialization skipped: {exc}")
     yield
+    close_qdrant_client()
     await disconnect_mongo()
 
 

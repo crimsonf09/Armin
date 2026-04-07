@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4.1-mini"
     frontend_origin: str = "http://localhost:5173"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    qdrant_collection: str = "chat_knowledge"
+    qdrant_vector_size: int = 1536
 
     model_config = SettingsConfigDict(env_file="env.example", env_file_encoding="utf-8")
 

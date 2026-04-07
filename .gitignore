@@ -25,5 +25,6 @@ dist-ssr
 
 frontend/.env
 backend/.env
+playground/.env
 .env
 .env.*
