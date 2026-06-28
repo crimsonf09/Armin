@@ -23,7 +23,7 @@ async def list_conversations(db: AsyncIOMotorDatabase, user_id: str) -> list[dic
             "user_id": doc["user_id"],
             "title": doc["title"],
             "updated_at": doc["updated_at"],
-            "created_at": doc["created_at"],
+            "created_at": doc["created_at"].isoformat(),
         }
         for doc in docs
     ]
@@ -37,7 +37,7 @@ async def create_conversation(db: AsyncIOMotorDatabase, user_id: str, title: str
         "user_id": user_id,
         "title": title,
         "updated_at": doc["updated_at"],
-        "created_at": doc["created_at"],
+        "created_at": doc["created_at"].isoformat(),
     }
 
 
@@ -75,7 +75,7 @@ async def list_messages(db: AsyncIOMotorDatabase, user_id: str, conversation_id:
             "user_id": doc["user_id"],
             "role": doc["role"],
             "content": doc["content"],
-            "created_at": doc["created_at"],
+            "created_at": doc["created_at"].isoformat(),
             "agent_trace": doc.get("agent_trace", []),
         }
         for doc in docs
@@ -96,7 +96,7 @@ async def create_user_message(db: AsyncIOMotorDatabase, user_id: str, conversati
         "user_id": user_id,
         "role": "user",
         "content": content,
-        "created_at": doc["created_at"],
+        "created_at": doc["created_at"].isoformat(),
         "agent_trace": [],
     }
 
@@ -115,6 +115,6 @@ async def run_assistant_reply(db: AsyncIOMotorDatabase, user_id: str, conversati
         "user_id": user_id,
         "role": "assistant",
         "content": reply,
-        "created_at": doc["created_at"],
+        "created_at": doc["created_at"].isoformat(),
         "agent_trace": trace,
     }

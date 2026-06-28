@@ -11,6 +11,10 @@ function readEnvUrl(key: "VITE_API_URL" | "VITE_SOCKET_URL", fallback: string): 
 const API_URL = readEnvUrl("VITE_API_URL", "http://localhost:8000/api");
 const SOCKET_URL = readEnvUrl("VITE_SOCKET_URL", "http://localhost:8000");
 
+// Auth UI removed — bootstrap a fixed dev session silently.
+const DEV_EMAIL = "dev@local.test";
+const DEV_PASSWORD = "devpassword123";
+
 type Conversation = { id: string; title: string };
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string; created_at: string };
 
@@ -30,13 +34,6 @@ app.innerHTML = `
     <div id="conversations"></div>
   </aside>
   <main class="main">
-    <div class="auth">
-      <input id="email" placeholder="email" />
-      <input id="password" type="password" placeholder="password" />
-      <button id="registerBtn">Register</button>
-      <button id="loginBtn">Login</button>
-      <span id="authState">${token ? "Signed in" : "Guest"}</span>
-    </div>
     <div id="messages" class="messages"></div>
     <div class="composer">
       <input id="messageInput" placeholder="Type a message..." />
@@ -68,9 +65,6 @@ function connectSocket() {
   if (!token) return;
   if (socket) socket.disconnect();
   socket = io(SOCKET_URL, { auth: { token } });
-  socket.on("message.created", (msg: Message) => {
-    if (msg.role === "user" && msg.id) appendMessage(msg);
-  });
   socket.on("agent.final", (msg: Message) => appendMessage(msg));
 }
 
@@ -104,22 +98,36 @@ async function loadConversations() {
   });
 }
 
-async function auth(kind: "register" | "login") {
-  const email = (document.getElementById("email") as HTMLInputElement).value;
-  const password = (document.getElementById("password") as HTMLInputElement).value;
+async function acquireDevToken(kind: "login" | "register") {
   const data = await api<{ access_token: string }>(`/auth/${kind}`, {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: DEV_EMAIL, password: DEV_PASSWORD }),
   });
   token = data.access_token;
   localStorage.setItem("token", token);
-  (document.getElementById("authState") as HTMLSpanElement).textContent = "Signed in";
+}
+
+async function ensureSession() {
+  if (token) {
+    try {
+      connectSocket();
+      await loadConversations();
+      return;
+    } catch {
+      token = "";
+      localStorage.removeItem("token");
+    }
+  }
+
+  try {
+    await acquireDevToken("login");
+  } catch {
+    await acquireDevToken("register");
+  }
+
   connectSocket();
   await loadConversations();
 }
-
-(document.getElementById("registerBtn") as HTMLButtonElement).onclick = () => auth("register");
-(document.getElementById("loginBtn") as HTMLButtonElement).onclick = () => auth("login");
 
 (document.getElementById("newChatBtn") as HTMLButtonElement).onclick = async () => {
   const convo = await api<Conversation>("/conversations", {
@@ -140,7 +148,6 @@ async function auth(kind: "register" | "login") {
     socket?.emit("conversation.join", { conversation_id: activeConversationId });
     joinedConversationId = activeConversationId;
   }
-  // Optimistic render so user always sees what was sent.
   appendMessage({
     id: `local-${Date.now()}`,
     role: "user",
@@ -150,7 +157,6 @@ async function auth(kind: "register" | "login") {
   socket?.emit("message.send", { conversation_id: activeConversationId, content });
 };
 
-if (token) {
-  connectSocket();
-  loadConversations();
-}
+ensureSession().catch((err) => {
+  console.error("Failed to start session:", err);
+});
